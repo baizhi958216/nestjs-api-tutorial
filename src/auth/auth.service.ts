@@ -6,8 +6,22 @@ import * as argon from 'argon2';
 @Injectable()
 export class AuthService {
   constructor(private prisma: PrismaService) {}
-  signin() {
-    return { msg: 'I have signed in' };
+  async signin(dto: AuthDto) {
+    // 通过邮箱查找用户
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: dto.email,
+      },
+    });
+    // 不存在则抛出异常
+    if (!user) throw new ForbiddenException('邮箱不存在');
+    // 对比密码
+    const pwMatches = await argon.verify(user.hash, dto.password);
+    // 密码错误抛出异常
+    if (!pwMatches) throw new ForbiddenException('密码错误');
+    // 返回用户
+    delete user.hash;
+    return user;
   }
 
   async signup(dto: AuthDto) {
